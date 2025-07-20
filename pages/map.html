@@ -61,10 +61,14 @@
     
     
             function getColor(s) {
-                return s == "no"? '#00ff00':
-                        s =="evisa"? '#ff0000':
-                        s=="entry"?'#abcabc':
-                        s=="visa"?"#123123":"#ffffff";
+                return s == "visa on arrival"?"#123123":
+                        s == "visa free"?"#ff3123":
+                        s == "eta"?"#1231ff":
+                        s == "e-visa"?"#12aa23":
+                        s == "visa required"?"#1abc23":
+                        s == "no admission"?"#123321":
+                        s == "-1"?"#ffffff":"#000000"
+                        // "7"-"360" 
             }
             function style(feature) {
                 return {
