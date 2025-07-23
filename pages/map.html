@@ -10,28 +10,66 @@
         crossorigin=""/>
 
     <style>
+    .legend {
+        text-align: left;
+        line-height: 18px;
+        color: #555;
+    }
+
+    .legend i {
+        width: 18px;
+        height: 18px;
+        float: left;
+        margin-right: 8px;
+        opacity: 0.7;
+    }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: sans-serif;
+        }
+        h1 {
+        margin: 20px 0; /* space around heading */
+        }
+    
         #map {
-            height: 500px; /* Make the map take full viewport height */
-            width: 500px;  /* Make the map take full viewport width */
+            height: 600px; /* Make the map take full viewport height */
+            width: 850px;  /* Make the map take full viewport width */
             margin: 0;
             padding: 0;
         }
-      body {
-          margin: 0;
-          padding: 0;
-          overflow: hidden; /* Prevent scrollbars if map is fullscreen */
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: 100vh;
-
+        /* Middle content container */
+        .center-box {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
         }
+
+
+
+        /* Container for all content */
+        .page-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+        }
+
     </style>
 </head>
 <body>
-   <h1>Where Youssef can go</h1>
-    <div id="map"></div>
+    <div class="page-container">
+        <h1>Where Youssef can go</h1>
+    
+        <div class="center-box">
+            <div class="middle-content">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -59,16 +97,16 @@
     
             L.geoJson(countriesJson).addTo(map);
     
-    
+
             function getColor(s) {
-                return s == "visa on arrival"?"#123123":
-                        s == "visa free"?"#ff3123":
-                        s == "eta"?"#1231ff":
-                        s == "e-visa"?"#12aa23":
-                        s == "visa required"?"#1abc23":
-                        s == "no admission"?"#123321":
-                        s == "-1"?"#ffffff":"#000000"
-                        // "7"-"360" 
+                return s == "visa on arrival"?"#F6FF4D":
+                        s == "visa free"?"#57FF65":
+                        (parseInt(s)<=360&&parseInt(s)>=7)?"#57FF65": // checking for a number indicating a visa free stay "7"-"360" 
+                        s == "eta"?"#C2FF3D":
+                        s == "e-visa"?"#745CFF":
+                        s == "visa required"?"#FF4036":
+                        s == "no admission"?"#832E16":
+                        s == "-1"?"#000000":"#ffffff"
             }
             function style(feature) {
                 return {
@@ -82,11 +120,35 @@
             }
     
             L.geoJson(countriesJson, {style: style}).addTo(map);
-            // Handle a map click event
-            function onMapClick(e) {
-                alert("You clicked the map at " + e.latlng);
-            }
-            map.on('click', onMapClick);
+            
+            // Create legend control
+            const legend = L.control({ position: 'bottomright' });
+
+            legend.onAdd = function (map) {
+                const div = L.DomUtil.create('div', 'info legend');
+                var categories = [
+                { label: "Visa Free", color: "#57FF65" },
+                { label: "Visa on Arrival", color: "#F6FF4D" },
+                { label: "eTA", color: "#C2FF3D" },
+                { label: "e-Visa", color: "#745CFF" },
+                { label: "Visa Required", color: "#FF4036" },
+                { label: "No Admission", color: "#832E16" },
+                { label: "Home Base", color: "#000000" },
+                { label: "Unknown / Other", color: "#ffffff" }
+                ];
+
+                categories.forEach(function(cat) {
+                div.innerHTML +=
+                    '<i style="background:' + cat.color + '; width:18px; height:18px; float:left; margin-right:8px; opacity:0.8;"></i>' +
+                    cat.label + '<br>';
+                });
+
+                return div;
+            };
+
+            // Add legend to map
+            legend.addTo(map);
+
         })
         .catch(error => console.error('There was a problem with the fetch operation:', error));
 
