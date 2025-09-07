@@ -8,9 +8,26 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
+	"time"
 )
 
-var visaMap = make(map[string]string) //map the country code to the visa type   
+//map the country code to the visa type required for Egy
+var visaMap = make(map[string]string)
+
+// couldnt find in map:  ATA
+// couldnt find in map:  ATF
+// couldnt find in map:  BMU
+// couldnt find in map:  -99
+// couldnt find in map:  FLK
+// couldnt find in map:  GRL
+// couldnt find in map:  GUF
+// couldnt find in map:  CS-KM
+// couldnt find in map:  NCL
+// couldnt find in map:  PRI
+// couldnt find in map:  ESH
+// couldnt find in map:  -99
 
 type FeatureCollection struct {
 	Type     string    `json:"type"` // Should be "FeatureCollection"
@@ -37,6 +54,14 @@ type Geometry struct {
 	Type        string        `json:"type"`        // e.g., "MultiPolygon"
 	Coordinates any `json:"coordinates"` // Multi-dimensional array for coordinates
 }
+
+var validVisaTypes = []string{"visa on arrival","visa free","eta","e-visa","visa required","no admission"}
+
+func isValidVisaType(s string) bool{
+	return slices.Contains(validVisaTypes,s)
+}
+
+
 
 func getVisaMap(){
 	// read csv
@@ -73,8 +98,13 @@ func getVisaMap(){
 
 
 func MapHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
 	http.ServeFile(w, r, "pages/map.html") // Assuming file.html is in the same directory
 }
+
 
 func annotateJson(jsonData []byte) []byte {
 	var parsedJson FeatureCollection
@@ -96,12 +126,11 @@ func annotateJson(jsonData []byte) []byte {
 	if err!=nil{
 		log.Fatal("could not parse json object into data")
 	}
-	// unmarshall data into json object
 	return jsonData
 }
 
 
-func CountriesJsonHandler(w http.ResponseWriter, r *http.Request){
+func getCountriesJson(w http.ResponseWriter, r *http.Request){
 	jsonFile,err := os.ReadFile("pages/countries.json")
 	jsonFile = annotateJson(jsonFile) // there is probably alot of copying in this implementation
 	if err!=nil{
@@ -111,17 +140,79 @@ func CountriesJsonHandler(w http.ResponseWriter, r *http.Request){
 
 	w.Header().Set("Content-Type","application/json")
 	w.Write(jsonFile)
-
 }
+
+func postCountriesJson(w http.ResponseWriter, r *http.Request){
+	jsonData := make(map[string]string)
+	err := json.NewDecoder(r.Body).Decode(&jsonData)
+	defer r.Body.Close()
+	if err!=nil{
+		http.Error(w, "Error reading JSON file: "+err.Error(), http.StatusInternalServerError)
+		log.Print("fucked up json man")
+	}
+	for key,val := range jsonData{
+		if isValidVisaType(val){
+			visaMap[key]=val
+			} else{
+				http.Error(w, "invalid visa type for "+key+" "+val, http.StatusInternalServerError)
+				fmt.Fprintln(w, "valid ones are"+strings.Join(validVisaTypes,", "))
+				log.Print("invalid visa type for",key,val)
+				return
+		}
+	}
+	//if we reach here then we return OK
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "JSON parsed successfully")
+}
+
+func countriesApiHandler(w http.ResponseWriter, r *http.Request){
+	if r.URL.Path != "/api/countries" {
+		http.NotFound(w, r)
+		return
+	}
+	if r.Method == http.MethodGet{
+		getCountriesJson(w, r)
+	}
+	if r.Method == http.MethodPost{
+		basicAuth(postCountriesJson)(w,r)
+	}
+}
+
+
+func basicAuth(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if ok {
+			usernameMatch := (username=="youssef")
+			passwordMatch := (password=="youssef")
+
+			if usernameMatch && passwordMatch {
+				next(w, r)
+				return
+			}
+		}
+
+		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	})
+} 
 
 func main() {
 	getVisaMap()
 
-	http.HandleFunc("/", MapHandler)
-	http.HandleFunc("/api/countries", CountriesJsonHandler)
+    mux := http.NewServeMux()
+    mux.HandleFunc("/", MapHandler)
+    mux.HandleFunc("/api/countries", countriesApiHandler)
+	 
+    srv := &http.Server{
+        Addr:         ":8080",
+        Handler:      mux,
+        IdleTimeout:  time.Minute,
+        ReadTimeout:  10 * time.Second,
+        WriteTimeout: 30 * time.Second,
+    }
 
-	fmt.Printf("port running on http://localhost:8080/\n")
-	if err := http.ListenAndServe(":8080", nil); err != nil{
-		log.Fatal(err)
-	}
+	 log.Printf("starting server on localhost%s", srv.Addr)
+    err := srv.ListenAndServe()
+    log.Fatal(err)
 }
