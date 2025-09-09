@@ -183,8 +183,8 @@ func basicAuth(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
 		if ok {
-			usernameMatch := (username=="youssef")
-			passwordMatch := (password=="youssef")
+			usernameMatch := (username==os.Getenv("AUTH_USERNAME"))
+			passwordMatch := (password==os.Getenv("AUTH_PASSWORD"))
 
 			if usernameMatch && passwordMatch {
 				next(w, r)
