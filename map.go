@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,7 +14,7 @@ import (
 	"time"
 )
 
-//map the country code to the visa type required for Egy
+//map the country code to the visa type required for the selected passport
 var visaMap = make(map[string]string)
 
 // couldnt find in map:  ATA
@@ -63,7 +64,7 @@ func isValidVisaType(s string) bool{
 
 
 
-func getVisaMap(){
+func getVisaMap(passport string) error {
 	// read csv
 	file,err := os.Open("../passport-index-dataset/passport-index-matrix-iso3.csv")
 	if err!=nil{
@@ -84,16 +85,16 @@ func getVisaMap(){
             log.Fatal(err)
         }
 
-		if line[0]=="EGY"{
+		if line[0]==passport{
 			for i := 1; i < len(line); i++ {
 				visaMap[header[i]] = line[i]
 			}
+			return nil
 		}
 	}
+	// if we reach here then no entry was found in the dataset
+	return errors.New("Did not find the given country in the dataset")
 
-	
-	// read the egypt line
-	// populate map variable
 }
 
 
@@ -102,7 +103,7 @@ func MapHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.ServeFile(w, r, "pages/map.html") // Assuming file.html is in the same directory
+	http.ServeFile(w, r, "pages/form.html")
 }
 
 
@@ -195,13 +196,31 @@ func basicAuth(next http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	})
-} 
+}
+
+func submitHandler(w http.ResponseWriter, r *http.Request){
+	if r.Method != http.MethodPost {
+		http.Redirect(w,r,"/",http.StatusSeeOther)
+		return
+	}
+	name := r.FormValue("name")
+	passport := r.FormValue("passport")
+	if (name == "") || (passport == ""){
+		http.Error(w, "Fields cannot be empty", http.StatusBadRequest)
+		return
+	}
+	err := getVisaMap(passport)
+	if err!= nil{
+		http.Error(w, "Did not find your country", http.StatusBadRequest)
+		return
+	}
+	http.ServeFile(w, r, "pages/map.html")
+}
 
 func main() {
-	getVisaMap()
-
     mux := http.NewServeMux()
     mux.HandleFunc("/", MapHandler)
+    mux.HandleFunc("/submit", submitHandler)
     mux.HandleFunc("/api/countries", countriesApiHandler)
 	 
     srv := &http.Server{
