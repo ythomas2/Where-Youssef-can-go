@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"html/template"
 	"os"
 	"slices"
 	"strings"
@@ -98,12 +99,32 @@ func getVisaMap(passport string) error {
 }
 
 
+type UserData struct {
+	Passports []string
+}
+
+
 func MapHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
-	http.ServeFile(w, r, "pages/form.html")
+
+	passports := []string{
+		"American",
+		"Canadian",
+		"British",
+		"Australian",
+		"Indian",
+	}
+
+	var templateFile = "pages/form.html"
+	userData := UserData{Passports:passports}
+	t := template.Must(template.ParseFiles(templateFile))
+	err := t.Execute(w, userData)
+	if err != nil {
+		panic(err)
+	}
 }
 
 

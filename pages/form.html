@@ -5,10 +5,19 @@
 </head>
 <body>
     <h1>User Info Form</h1>
-    <form action="/submit" method="POST">
-        Name: <input type="text" name="name" required><br><br>
-        Passport: <input type="text" name="passport" required><br><br>
-        <input type="submit" value="Submit">
-    </form>
+			<form action="/submit" method="POST">
+				<label for="name">Name:</label><br />
+				<input type="text" id="name" name="name" required /><br /><br />
+
+				<label for="Passport">Passport:</label><br />
+				<select id="Passport" name="Passport" required>
+					<option value="" disabled selected>-- Select Passport --</option>
+					{{range .Passports}}
+						<option value="{{.}}">{{.}}</option>
+					{{end}}
+				</select><br /><br />
+
+				<input type="submit" value="Submit" />
+			</form>
 </body>
 </html>
