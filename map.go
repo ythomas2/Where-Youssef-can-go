@@ -64,6 +64,19 @@ func isValidVisaType(s string) bool{
 }
 
 
+func getPassportSlice() []string{
+	file,err := os.Open("../passport-index-dataset/passport-index-matrix-iso3.csv")
+	if err!=nil{
+		log.Fatal("couldnt read the countries csv")
+	}
+	defer file.Close()
+	csvReader := csv.NewReader(file)
+	header,err := csvReader.Read()
+	if err!=nil{
+		log.Fatal("couldnt read the countries csv")
+	}
+	return header[1:]
+}
 
 func getVisaMap(passport string) error {
 	// read csv
@@ -110,16 +123,9 @@ func MapHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	passports := []string{
-		"American",
-		"Canadian",
-		"British",
-		"Australian",
-		"Indian",
-	}
 
 	var templateFile = "pages/form.html"
-	userData := UserData{Passports:passports}
+	userData := UserData{Passports:getPassportSlice()}
 	t := template.Must(template.ParseFiles(templateFile))
 	err := t.Execute(w, userData)
 	if err != nil {
@@ -224,8 +230,8 @@ func submitHandler(w http.ResponseWriter, r *http.Request){
 		http.Redirect(w,r,"/",http.StatusSeeOther)
 		return
 	}
-	name := r.FormValue("name")
-	passport := r.FormValue("passport")
+	name := r.FormValue("Name")
+	passport := r.FormValue("Passport")
 	if (name == "") || (passport == ""){
 		http.Error(w, "Fields cannot be empty", http.StatusBadRequest)
 		return
